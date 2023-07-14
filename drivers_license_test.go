@@ -99,13 +99,13 @@ func TestCompareDate(t *testing.T) {
 
 	// should return an error
 	bcdata := "invalid barcode data"
-	bc, err := drivers_license.NewBarcode(bcdata)
+	_, err := drivers_license.NewBarcode(bcdata)
 	require.NotNil(t, err)
 	require.IsType(t, drivers_license.ErrInvalidData, err)
 
 	// should return an error and the original DOB
 	bcdata = "invalid\nbarcode\ndata\nthat passes inspection"
-	bc, err = drivers_license.NewBarcode(bcdata)
+	bc, err := drivers_license.NewBarcode(bcdata)
 	require.NotNil(t, err)
 	require.NotNil(t, bc)
 	dob, err := bc.SelectDate(drivers_license.BarcodeDataTypeDOB, barcodeTests[0].expectedDOBT)
