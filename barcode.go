@@ -150,7 +150,7 @@ func extractData(data string, prefix BarcodeDataPrefix, retErr error) (string, e
 	re := regexp.MustCompile(fmt.Sprintf(`\n%s\s*(\S+)`, prefix))
 	match := re.FindStringSubmatch(data)
 	if retErr == nil {
-		retErr = fmt.Errorf("barcode data using prefix: %s could not be extracted from: %s", prefix, data)
+		retErr = fmt.Errorf("barcode data using prefix: %s could not be extracted from the barcode data", prefix)
 	}
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1]), nil
