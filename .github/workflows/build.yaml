@@ -1,4 +1,4 @@
-name: golangci-lint
+name: build
 on:
   push:
     tags:
@@ -7,9 +7,11 @@ on:
       - main
   pull_request:
   merge_group:
+
 permissions:
   contents: read
   pull-requests: read
+
 jobs:
   build:
     name: build
@@ -53,3 +55,14 @@ jobs:
       - name: Run Check
         run: $HOME/go/bin/go-licenses check . --allowed_licenses Apache-2.0,MIT
         shell: bash
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - id: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+           go-version-input: 1.20.6
+           go-package: ./...
+           cache: true
