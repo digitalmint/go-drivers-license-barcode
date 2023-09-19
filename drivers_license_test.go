@@ -1,11 +1,10 @@
-package drivers_license_test
+package drivers_license
 
 import (
 	"errors"
 	"testing"
 	"time"
 
-	drivers_license "github.com/digitalmint/go-drivers-license-barcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,7 +57,7 @@ var (
 
 func TestDocumentSerialFromBarcodeData(t *testing.T) {
 	for _, tt := range barcodeTests {
-		bc, err := drivers_license.NewBarcode(tt.str)
+		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
 		require.Equal(t, tt.expectedSerial, bc.DocumentSerial)
@@ -67,7 +66,7 @@ func TestDocumentSerialFromBarcodeData(t *testing.T) {
 
 func TestDOBFromBarcodeData(t *testing.T) {
 	for _, tt := range barcodeTests {
-		bc, err := drivers_license.NewBarcode(tt.str)
+		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
 		require.Equal(t, tt.expectedDOB, bc.Dob)
@@ -76,7 +75,7 @@ func TestDOBFromBarcodeData(t *testing.T) {
 }
 func TestExpiryFromBarcodeData(t *testing.T) {
 	for _, tt := range barcodeTests {
-		bc, err := drivers_license.NewBarcode(tt.str)
+		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
 		require.Equal(t, tt.expectedExp, bc.Expiry)
@@ -85,81 +84,121 @@ func TestExpiryFromBarcodeData(t *testing.T) {
 }
 
 func TestCompareDate(t *testing.T) {
+	var bcdata string
 	for _, tt := range barcodeTests {
-		bc, err := drivers_license.NewBarcode(tt.str)
+		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
-		dob, err := bc.SelectDate(drivers_license.BarcodeDataTypeDOB, tt.expectedDOBT)
+		dob, err := bc.SelectDate(BarcodeDataTypeDOB, tt.expectedDOBT)
 		require.Nil(t, err)
 		require.Equal(t, tt.expectedDOBT, dob)
-		exp, err := bc.SelectDate(drivers_license.BarcodeDataTypeExpiry, tt.expectedExpT)
+		exp, err := bc.SelectDate(BarcodeDataTypeExpiry, tt.expectedExpT)
 		require.Nil(t, err)
 		require.Equal(t, tt.expectedExpT, exp)
 	}
 
 	// should return an error
-	bcdata := "invalid barcode data"
-	_, err := drivers_license.NewBarcode(bcdata)
+	bcdata = "invalid barcode data"
+	_, err := NewBarcode(bcdata)
 	require.NotNil(t, err)
-	require.IsType(t, drivers_license.ErrInvalidData, err)
+	require.IsType(t, ErrInvalidData{}, err)
+	require.True(t, IsPackageError(err))
+	if !errors.As(err, &ErrInvalidData{}) {
+		t.Fatal("invalid error type using errors.As")
+	}
 
-	// should return an error and the original DOB
 	bcdata = "invalid\nbarcode\ndata\nthat passes inspection"
-	bc, err := drivers_license.NewBarcode(bcdata)
+	bc, err := NewBarcode(bcdata)
 	require.NotNil(t, err)
 	require.NotNil(t, bc)
-	dob, err := bc.SelectDate(drivers_license.BarcodeDataTypeDOB, barcodeTests[0].expectedDOBT)
+	// should return nil error and the original DOB
+	dob, err := bc.SelectDate(BarcodeDataTypeDOB, barcodeTests[0].expectedDOBT)
 	require.Nil(t, err)
 	require.Equal(t, barcodeTests[0].expectedDOBT, dob)
-	exp, err := bc.SelectDate(drivers_license.BarcodeDataTypeExpiry, barcodeTests[0].expectedExpT)
+	// should return nil error and the original exp
+	exp, err := bc.SelectDate(BarcodeDataTypeExpiry, barcodeTests[0].expectedExpT)
 	require.Nil(t, err)
 	require.Equal(t, barcodeTests[0].expectedExpT, exp)
 
-	bc, err = drivers_license.NewBarcode(barcodeTests[0].str)
+	bc, err = NewBarcode(barcodeTests[0].str)
 	require.Nil(t, err)
 	require.NotNil(t, bc)
 
 	// should return a ErrBarcodeDateMismatch error and the DOB in the barcode
 	passedDOBT := time.Date(2011, time.Month(12), 31, 0, 0, 0, 0, time.UTC)
-	dob, err = bc.SelectDate(drivers_license.BarcodeDataTypeDOB, &passedDOBT)
+	dob, err = bc.SelectDate(BarcodeDataTypeDOB, &passedDOBT)
 	require.NotNil(t, err)
-	require.IsType(t, drivers_license.ErrBarcodeDateMismatch{}, err)
+	require.IsType(t, ErrBarcodeDateMismatch{}, err)
 	require.Equal(t, barcodeTests[0].expectedDOBT, dob)
 
-	var errDateMismatch drivers_license.ErrBarcodeDateMismatch
-	if !errors.As(err, &errDateMismatch) {
+	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
 	passedExpT := time.Date(2011, time.Month(12), 31, 0, 0, 0, 0, time.UTC)
-	dob, err = bc.SelectDate(drivers_license.BarcodeDataTypeExpiry, &passedExpT)
+	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
 	require.NotNil(t, err)
-	require.IsType(t, drivers_license.ErrBarcodeDateMismatch{}, err)
+	require.IsType(t, ErrBarcodeDateMismatch{}, err)
 	require.Equal(t, barcodeTests[0].expectedExpT, dob)
 
-	if !errors.As(err, &errDateMismatch) {
+	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
 	passedExpT = time.Time{}
-	dob, err = bc.SelectDate(drivers_license.BarcodeDataTypeExpiry, &passedExpT)
+	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
 	require.NotNil(t, err)
-	require.IsType(t, drivers_license.ErrBarcodeDateMismatch{}, err)
+	require.IsType(t, ErrBarcodeDateMismatch{}, err)
+	require.True(t, IsPackageError(err))
 	require.Equal(t, barcodeTests[0].expectedExpT, dob)
 
-	if !errors.As(err, &errDateMismatch) {
+	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
-	dob, err = bc.SelectDate(drivers_license.BarcodeDataTypeExpiry, nil)
+	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, nil)
 	require.NotNil(t, err)
-	require.IsType(t, drivers_license.ErrBarcodeDateMismatch{}, err)
+	require.IsType(t, ErrBarcodeDateMismatch{}, err)
 	require.Equal(t, barcodeTests[0].expectedExpT, dob)
 
-	if !errors.As(err, &errDateMismatch) {
+	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
+
+	// should return ErrPrefixExtraction
+	dateT, date, err := processDate("someteststring", BarcodeDataPrefix("foo"))
+	require.NotNil(t, err)
+	require.IsType(t, ErrPrefixExtraction{}, err)
+	if !errors.As(err, &ErrPrefixExtraction{}) {
+		t.Fatal("invalid error type using errors.As")
+	}
+	require.Nil(t, dateT)
+	require.Empty(t, date)
+	require.True(t, IsPackageError(err))
+
+	// should return ErrInvalidDate
+	dateT, err = parseDate("someteststring")
+	require.NotNil(t, err)
+	require.IsType(t, ErrInvalidDate{}, err)
+	if !errors.As(err, &ErrInvalidDate{}) {
+		t.Fatal("invalid error type using errors.As")
+	}
+	require.Nil(t, dateT)
+	//should return true
+	require.True(t, IsPackageError(err))
+
+	// should return ErrParseDate
+	dateT, err = parseDate("99999999")
+	require.NotNil(t, err)
+	require.IsType(t, ErrParseDate{}, err)
+	require.Nil(t, dateT)
+	if !errors.As(err, &ErrParseDate{}) {
+		t.Fatal("invalid error type using errors.As")
+	}
+
+	//should return true
+	require.True(t, IsPackageError(err))
 }
