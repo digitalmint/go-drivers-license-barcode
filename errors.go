@@ -11,18 +11,20 @@ func (e ErrInvalidData) Error() string {
 	return "invalid barcode data"
 }
 
-type ErrInvalidDate struct{}
+type ErrInvalidDate struct {
+	FieldName string
+}
 
 func (e ErrInvalidDate) Error() string {
-	return "invalid date"
+	return fmt.Sprintf("fieldname: %q : invalid date", e.FieldName)
 }
 
 type ErrBarcodeDateMismatch struct {
-	SentDOB, BarcodeDOB string
+	SentDate, BarcodeDate, FieldName string
 }
 
 func (e ErrBarcodeDateMismatch) Error() string {
-	return fmt.Sprintf("barcode date %q does not match passed date %q - using barcode date", e.BarcodeDOB, e.SentDOB)
+	return fmt.Sprintf("fieldname: %q : barcode date %q does not match passed date %q - using barcode date", e.FieldName, e.BarcodeDate, e.SentDate)
 }
 
 type ErrPrefixExtraction struct {
@@ -34,12 +36,12 @@ func (e ErrPrefixExtraction) Error() string {
 }
 
 type ErrParseDate struct {
-	Date string
-	Err  error
+	Date, FieldName string
+	Err             error
 }
 
 func (e ErrParseDate) Error() string {
-	return fmt.Sprintf("could not parse date %q", e.Date)
+	return fmt.Sprintf("fieldname: %q : could not parse date %q", e.FieldName, e.Date)
 }
 func (e ErrParseDate) Unwrap() error {
 	return e.Err

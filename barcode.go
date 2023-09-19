@@ -79,6 +79,8 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 		zap.S().Panicf("invalid dateType: %s", dateType)
 	}
 
+	fieldName := string(dateType)
+
 	// check for empty values
 	if bcDate == "" {
 		return date, nil
@@ -91,14 +93,16 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 		tmp, err := time.Parse(TimeLayoutBarcodeData, bcDate)
 		if err != nil {
 			return date, ErrParseDate{
-				Date: bcDate,
-				Err:  err,
+				Date:      bcDate,
+				FieldName: fieldName,
+				Err:       err,
 			}
 		}
 		date = &tmp
 		return date, ErrBarcodeDateMismatch{
-			SentDOB:    sentDateStr,
-			BarcodeDOB: bcDate,
+			SentDate:    sentDateStr,
+			BarcodeDate: bcDate,
+			FieldName:   fieldName,
 		}
 	}
 	return date, nil
@@ -113,7 +117,17 @@ func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, err
 		return nil, "", nil
 	}
 
-	dateT, err := parseDate(date)
+	fieldName := "uknown"
+	switch prefix {
+	case BarcodeDataPrefixDOB:
+		fieldName = string(BarcodeDataTypeDOB)
+
+	case BarcodeDataPrefixExpiry:
+		fieldName = string(BarcodeDataTypeExpiry)
+
+	}
+
+	dateT, err := parseDate(date, fieldName)
 
 	if err != nil {
 		return nil, "", err
@@ -124,10 +138,12 @@ func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, err
 	return dateT, date, nil
 }
 
-func parseDate(date string) (*time.Time, error) {
+func parseDate(date, fieldName string) (*time.Time, error) {
 	_, err := strconv.Atoi(date)
 	if err != nil {
-		return nil, ErrInvalidDate{}
+		return nil, ErrInvalidDate{
+			FieldName: fieldName,
+		}
 	}
 	yy, _ := strconv.Atoi(date[0:2])
 
@@ -141,8 +157,9 @@ func parseDate(date string) (*time.Time, error) {
 	}
 	if err != nil {
 		return nil, ErrParseDate{
-			Date: date,
-			Err:  err,
+			Date:      date,
+			FieldName: fieldName,
+			Err:       err,
 		}
 	}
 	return &dateT, nil

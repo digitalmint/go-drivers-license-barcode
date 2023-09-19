@@ -141,6 +141,7 @@ func TestCompareDate(t *testing.T) {
 	require.NotNil(t, err)
 	require.IsType(t, ErrBarcodeDateMismatch{}, err)
 	require.Equal(t, barcodeTests[0].expectedExpT, dob)
+	require.EqualValues(t, "fieldname: \"exp\" : barcode date \"20230712\" does not match passed date \"20111231\" - using barcode date", err.Error())
 
 	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
@@ -180,9 +181,10 @@ func TestCompareDate(t *testing.T) {
 	require.True(t, IsPackageError(err))
 
 	// should return ErrInvalidDate
-	dateT, err = parseDate("someteststring")
+	dateT, err = parseDate("someteststring", "testField")
 	require.NotNil(t, err)
 	require.IsType(t, ErrInvalidDate{}, err)
+	require.EqualValues(t, "fieldname: \"testField\" : invalid date", err.Error())
 	if !errors.As(err, &ErrInvalidDate{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
@@ -191,8 +193,9 @@ func TestCompareDate(t *testing.T) {
 	require.True(t, IsPackageError(err))
 
 	// should return ErrParseDate
-	dateT, err = parseDate("99999999")
+	dateT, err = parseDate("99999999", "testField")
 	require.NotNil(t, err)
+	require.EqualValues(t, "fieldname: \"testField\" : could not parse date \"99999999\"", err.Error())
 	require.IsType(t, ErrParseDate{}, err)
 	require.Nil(t, dateT)
 	if !errors.As(err, &ErrParseDate{}) {
