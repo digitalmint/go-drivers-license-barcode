@@ -49,12 +49,12 @@ func NewBarcode(data string) (Barcode, error) {
 	}
 
 	bc.DobT, bc.Dob, err = processDate(data, BarcodeDataPrefixDOB)
-	if err != nil && !errors.Is(err, ErrInvalidDate{}) {
+	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
 		return bc, err
 	}
 
 	bc.ExpiryT, bc.Expiry, err = processDate(data, BarcodeDataPrefixExpiry)
-	if err != nil && !errors.Is(err, ErrInvalidDate{}) {
+	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
 		return bc, err
 	}
 
