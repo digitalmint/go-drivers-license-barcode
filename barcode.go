@@ -11,11 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	ErrInvalidData = errors.New("invalid barcode data sent")
-	ErrInvalidDate = errors.New("invalid date")
-)
-
 type BarcodeDataType string
 type BarcodeDataPrefix string
 
@@ -31,14 +26,6 @@ const (
 	TimeLayoutBarcodeDataUS = "01022006"
 )
 
-type ErrBarcodeDateMismatch struct {
-	SentDOB, BarcodeDOB string
-}
-
-func (e ErrBarcodeDateMismatch) Error() string {
-	return fmt.Sprintf("barcode date (%s) does not match passed date (%s) - using barcode date", e.BarcodeDOB, e.SentDOB)
-}
-
 type Barcode struct {
 	Raw            string
 	Dob            string
@@ -51,23 +38,23 @@ type Barcode struct {
 func NewBarcode(data string) (Barcode, error) {
 	var err error
 	if !strings.Contains(data, "\n") {
-		return Barcode{}, ErrInvalidData
+		return Barcode{}, ErrInvalidData{}
 	}
 	data = strings.TrimSpace(data)
 	bc := Barcode{Raw: data}
 
-	bc.DocumentSerial, err = extractData(data, BarcodeDataPrefixSerial, nil)
+	bc.DocumentSerial, err = extractData(data, BarcodeDataPrefixSerial)
 	if err != nil {
 		return bc, err
 	}
 
 	bc.DobT, bc.Dob, err = processDate(data, BarcodeDataPrefixDOB)
-	if err != nil && !errors.Is(err, ErrInvalidDate) {
+	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
 		return bc, err
 	}
 
 	bc.ExpiryT, bc.Expiry, err = processDate(data, BarcodeDataPrefixExpiry)
-	if err != nil && !errors.Is(err, ErrInvalidDate) {
+	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
 		return bc, err
 	}
 
@@ -92,6 +79,8 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 		zap.S().Panicf("invalid dateType: %s", dateType)
 	}
 
+	fieldName := string(dateType)
+
 	// check for empty values
 	if bcDate == "" {
 		return date, nil
@@ -103,30 +92,59 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 	if sentDateStr != bcDate {
 		tmp, err := time.Parse(TimeLayoutBarcodeData, bcDate)
 		if err != nil {
-			return date, err
+			return date, ErrParseDate{
+				Date:      bcDate,
+				FieldName: fieldName,
+				Err:       err,
+			}
 		}
 		date = &tmp
 		return date, ErrBarcodeDateMismatch{
-			SentDOB:    sentDateStr,
-			BarcodeDOB: bcDate,
+			SentDate:    sentDateStr,
+			BarcodeDate: bcDate,
+			FieldName:   fieldName,
 		}
 	}
 	return date, nil
 }
 
 func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, error) {
-	date, err := extractData(data, prefix, nil)
+	date, err := extractData(data, prefix)
 	if err != nil {
 		return nil, "", err
 	}
 	if date == "" {
 		return nil, "", nil
 	}
-	_, err = strconv.Atoi(date)
-	if err != nil {
-		return nil, "", ErrInvalidDate
+
+	fieldName := "uknown"
+	switch prefix {
+	case BarcodeDataPrefixDOB:
+		fieldName = string(BarcodeDataTypeDOB)
+
+	case BarcodeDataPrefixExpiry:
+		fieldName = string(BarcodeDataTypeExpiry)
+
 	}
 
+	dateT, err := parseDate(date, fieldName)
+
+	if err != nil {
+		return nil, "", err
+	}
+	// convert to a YYYYMMDD standard format
+	date = dateT.Format(TimeLayoutBarcodeData)
+
+	return dateT, date, nil
+}
+
+func parseDate(date, fieldName string) (*time.Time, error) {
+	_, err := strconv.Atoi(date)
+	if err != nil {
+		return nil, ErrInvalidDate{
+			FieldName: fieldName,
+		}
+	}
 	yy, _ := strconv.Atoi(date[0:2])
 
 	var dateT time.Time
@@ -136,26 +154,24 @@ func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, err
 	} else {
 		//MMDDYYYY
 		dateT, err = time.Parse(TimeLayoutBarcodeDataUS, date)
-		// convert to a YYYYMMDD standard format
-		date = dateT.Format(TimeLayoutBarcodeData)
 	}
 	if err != nil {
-		return nil, "", err
+		return nil, ErrParseDate{
+			Date:      date,
+			FieldName: fieldName,
+			Err:       err,
+		}
 	}
-
-	return &dateT, date, nil
+	return &dateT, nil
 }
 
-func extractData(data string, prefix BarcodeDataPrefix, retErr error) (string, error) {
+func extractData(data string, prefix BarcodeDataPrefix) (string, error) {
 	re := regexp.MustCompile(fmt.Sprintf(`\n%s\s*(\S+)`, prefix))
 	match := re.FindStringSubmatch(data)
-	if retErr == nil {
-		retErr = fmt.Errorf("barcode data using prefix: %s could not be extracted from the barcode data", prefix)
-	}
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1]), nil
 	} else {
-		return "", retErr
+		return "", ErrPrefixExtraction{Prefix: prefix}
 	}
 
 }
