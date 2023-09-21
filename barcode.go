@@ -63,7 +63,7 @@ func NewBarcode(data string) (Barcode, error) {
 
 // SelectDate compares the date of the type BarcodeDataType found in the barcode data with a date which is passed in time.Time format.
 // If dates do not match, it returns the barcode date and a ErrBarcodeDateMismatch error, otherwise it returns the original date passed in, and any error.
-// If no barcode date was found it returns the original date passed in, and nil error.
+// If no barcode date was found, it returns the original date passed in, and nil error.
 // Dates are returned in time.Time format
 func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.Time, error) {
 	var bcDate string
@@ -108,6 +108,7 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 	return date, nil
 }
 
+// processDate extracts the date for the prefix, and return it in *time.Time and as a YYYYMMDD formatted string, and any errors
 func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, error) {
 	date, err := extractData(data, prefix)
 	if err != nil {
@@ -138,6 +139,8 @@ func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, err
 	return dateT, date, nil
 }
 
+// parseDate takes in a date and field name strings
+// It will then attempt to convert to a time.Time value and return it with any errors
 func parseDate(date, fieldName string) (*time.Time, error) {
 	_, err := strconv.Atoi(date)
 	if err != nil {
@@ -166,6 +169,7 @@ func parseDate(date, fieldName string) (*time.Time, error) {
 	return &dateT, nil
 }
 
+// extractData extracts the information associated with 'prefix' from 'data' and return the extracted string and any errors
 func extractData(data string, prefix BarcodeDataPrefix) (string, error) {
 	re := regexp.MustCompile(fmt.Sprintf(`\n%s\s*(\S+)`, prefix))
 	match := re.FindStringSubmatch(data)
