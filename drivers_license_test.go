@@ -206,8 +206,9 @@ func TestCompareDate(t *testing.T) {
 	// should return ErrInvalidDate
 	dateT, err = parseDate("someteststring", "testField")
 	require.NotNil(t, err)
-	require.IsType(t, ErrInvalidDate{}, err)
-	require.EqualValues(t, "fieldname: \"testField\" : invalid date", err.Error())
+	var errInvDate ErrInvalidDate
+	require.ErrorAs(t, err, &errInvDate)
+	require.EqualValues(t, "fieldname: \"testField\" : invalid date: \"someteststring\"", err.Error())
 	if !errors.As(err, &ErrInvalidDate{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
