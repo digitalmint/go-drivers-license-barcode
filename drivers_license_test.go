@@ -60,7 +60,7 @@ func TestDocumentSerialFromBarcodeData(t *testing.T) {
 		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
-		require.Equal(t, tt.expectedSerial, bc.DocumentSerial)
+		require.Equal(t, tt.expectedSerial, bc.DocumentSerial.String)
 	}
 }
 
@@ -69,8 +69,8 @@ func TestDOBFromBarcodeData(t *testing.T) {
 		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
-		require.Equal(t, tt.expectedDOB, bc.Dob)
-		require.Equal(t, tt.expectedDOBT, bc.DobT)
+		require.Equal(t, tt.expectedDOB, bc.Dob.String)
+		require.Equal(t, tt.expectedDOBT, bc.Dob.DateT)
 	}
 }
 func TestExpiryFromBarcodeData(t *testing.T) {
@@ -78,8 +78,8 @@ func TestExpiryFromBarcodeData(t *testing.T) {
 		bc, err := NewBarcode(tt.str)
 		require.Nil(t, err)
 		require.NotNil(t, bc)
-		require.Equal(t, tt.expectedExp, bc.Expiry)
-		require.Equal(t, tt.expectedExpT, bc.ExpiryT)
+		require.Equal(t, tt.expectedExp, bc.Expiry.String)
+		require.Equal(t, tt.expectedExpT, bc.Expiry.DateT)
 	}
 }
 
@@ -109,12 +109,23 @@ func TestCompareDate(t *testing.T) {
 
 	bcdata = "invalid\nbarcode\ndata\nthat passes inspection"
 	bc, err := NewBarcode(bcdata)
-	require.NotNil(t, err)
-	require.NotNil(t, bc)
-	// should return nil error and the original DOB
-	dob, err := bc.SelectDate(BarcodeDataTypeDOB, barcodeTests[0].expectedDOBT)
 	require.Nil(t, err)
-	require.Equal(t, barcodeTests[0].expectedDOBT, dob)
+	require.NotNil(t, bc)
+	require.NotNil(t, bc.Dob.Err)
+	require.IsType(t, ErrPrefixExtraction{}, bc.Dob.Err)
+	require.NotNil(t, bc.Expiry.Err)
+	require.IsType(t, ErrPrefixExtraction{}, bc.Expiry.Err)
+	require.NotNil(t, bc.DocumentSerial.Err)
+	require.IsType(t, ErrPrefixExtraction{}, bc.DocumentSerial.Err)
+	//should return true
+	require.True(t, IsPackageError(bc.DocumentSerial.Err))
+	//should return false
+	require.False(t, IsDateError(bc.DocumentSerial.Err))
+
+	// should return nil error and the original DOB
+	dobT, err := bc.SelectDate(BarcodeDataTypeDOB, barcodeTests[0].expectedDOBT)
+	require.Nil(t, err)
+	require.Equal(t, barcodeTests[0].expectedDOBT, dobT)
 	// should return nil error and the original exp
 	exp, err := bc.SelectDate(BarcodeDataTypeExpiry, barcodeTests[0].expectedExpT)
 	require.Nil(t, err)
@@ -126,48 +137,60 @@ func TestCompareDate(t *testing.T) {
 
 	// should return a ErrBarcodeDateMismatch error and the DOB in the barcode
 	passedDOBT := time.Date(2011, time.Month(12), 31, 0, 0, 0, 0, time.UTC)
-	dob, err = bc.SelectDate(BarcodeDataTypeDOB, &passedDOBT)
+	dobT, err = bc.SelectDate(BarcodeDataTypeDOB, &passedDOBT)
 	require.NotNil(t, err)
 	require.IsType(t, ErrBarcodeDateMismatch{}, err)
-	require.Equal(t, barcodeTests[0].expectedDOBT, dob)
+	require.Equal(t, barcodeTests[0].expectedDOBT, dobT)
 
 	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
+	//should return true
+	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
 	passedExpT := time.Date(2011, time.Month(12), 31, 0, 0, 0, 0, time.UTC)
-	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
+	dobT, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
 	require.NotNil(t, err)
 	require.IsType(t, ErrBarcodeDateMismatch{}, err)
-	require.Equal(t, barcodeTests[0].expectedExpT, dob)
+	require.Equal(t, barcodeTests[0].expectedExpT, dobT)
 	require.EqualValues(t, "fieldname: \"exp\" : barcode date \"20230712\" does not match passed date \"20111231\" - using barcode date", err.Error())
 
 	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
+	//should return true
+	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
 	passedExpT = time.Time{}
-	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
+	dobT, err = bc.SelectDate(BarcodeDataTypeExpiry, &passedExpT)
 	require.NotNil(t, err)
 	require.IsType(t, ErrBarcodeDateMismatch{}, err)
 	require.True(t, IsPackageError(err))
-	require.Equal(t, barcodeTests[0].expectedExpT, dob)
+	require.Equal(t, barcodeTests[0].expectedExpT, dobT)
 
 	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
+	//should return true
+	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 
 	// should return a ErrBarcodeDateMismatch error and the expiration date in the barcode
-	dob, err = bc.SelectDate(BarcodeDataTypeExpiry, nil)
+	dobT, err = bc.SelectDate(BarcodeDataTypeExpiry, nil)
 	require.NotNil(t, err)
 	require.IsType(t, ErrBarcodeDateMismatch{}, err)
-	require.Equal(t, barcodeTests[0].expectedExpT, dob)
+	require.Equal(t, barcodeTests[0].expectedExpT, dobT)
 
 	if !errors.As(err, &ErrBarcodeDateMismatch{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
+	//should return true
+	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 
 	// should return ErrPrefixExtraction
 	dateT, date, err := processDate("someteststring", BarcodeDataPrefix("foo"))
@@ -191,6 +214,7 @@ func TestCompareDate(t *testing.T) {
 	require.Nil(t, dateT)
 	//should return true
 	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 
 	// should return ErrParseDate
 	dateT, err = parseDate("99999999", "testField")
@@ -204,4 +228,5 @@ func TestCompareDate(t *testing.T) {
 
 	//should return true
 	require.True(t, IsPackageError(err))
+	require.True(t, IsDateError(err))
 }

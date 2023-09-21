@@ -1,7 +1,6 @@
 package drivers_license
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -26,54 +25,55 @@ const (
 	TimeLayoutBarcodeDataUS = "01022006"
 )
 
+type DateField struct {
+	String string
+	DateT  *time.Time
+	Err    error
+}
+type StringField struct {
+	String string
+	Err    error
+}
 type Barcode struct {
 	Raw            string
-	Dob            string
-	DobT           *time.Time
-	Expiry         string
-	ExpiryT        *time.Time
-	DocumentSerial string
+	Dob            DateField
+	Expiry         DateField
+	DocumentSerial StringField
 }
 
+// NewBarcode instantiates and returns a Barcode object.
+// If the barcode data is invalid and cannot be parsed, it will return an empty Barcode and the error.
+// Otherwise, it attempts to parse the serial number, dob and expiration date
+// Any errors parsing these are stored in the respective Barcode field's Err value rather than failing.
 func NewBarcode(data string) (Barcode, error) {
-	var err error
 	if !strings.Contains(data, "\n") {
 		return Barcode{}, ErrInvalidData{}
 	}
 	data = strings.TrimSpace(data)
 	bc := Barcode{Raw: data}
 
-	bc.DocumentSerial, err = extractData(data, BarcodeDataPrefixSerial)
-	if err != nil {
-		return bc, err
-	}
+	bc.DocumentSerial.String, bc.DocumentSerial.Err = extractData(data, BarcodeDataPrefixSerial)
 
-	bc.DobT, bc.Dob, err = processDate(data, BarcodeDataPrefixDOB)
-	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
-		return bc, err
-	}
+	bc.Dob.DateT, bc.Dob.String, bc.Dob.Err = processDate(data, BarcodeDataPrefixDOB)
 
-	bc.ExpiryT, bc.Expiry, err = processDate(data, BarcodeDataPrefixExpiry)
-	if err != nil && !errors.As(err, &ErrInvalidDate{}) {
-		return bc, err
-	}
+	bc.Expiry.DateT, bc.Expiry.String, bc.Expiry.Err = processDate(data, BarcodeDataPrefixExpiry)
 
 	return bc, nil
 }
 
-// SelectDate compares the date of the type dateType found in the barcode data with a date which is passed in time.Time format.
+// SelectDate compares the date of the type BarcodeDataType found in the barcode data with a date which is passed in time.Time format.
 // If dates do not match, it returns the barcode date and a ErrBarcodeDateMismatch error, otherwise it returns the original date passed in, and any error.
-// If no barcode date was found it returns the original date passed in, and any error.
+// If no barcode date was found it returns the original date passed in, and nil error.
 // Dates are returned in time.Time format
 func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.Time, error) {
 	var bcDate string
 
 	switch dateType {
 	case BarcodeDataTypeDOB:
-		bcDate = bc.Dob
+		bcDate = bc.Dob.String
 
 	case BarcodeDataTypeExpiry:
-		bcDate = bc.Expiry
+		bcDate = bc.Expiry.String
 
 	default:
 		zap.S().Panicf("invalid dateType: %s", dateType)
@@ -143,6 +143,7 @@ func parseDate(date, fieldName string) (*time.Time, error) {
 	if err != nil {
 		return nil, ErrInvalidDate{
 			FieldName: fieldName,
+			Value:     date,
 		}
 	}
 	yy, _ := strconv.Atoi(date[0:2])
@@ -171,7 +172,11 @@ func extractData(data string, prefix BarcodeDataPrefix) (string, error) {
 	if len(match) > 1 {
 		return strings.TrimSpace(match[1]), nil
 	} else {
-		return "", ErrPrefixExtraction{Prefix: prefix}
+		isDate := prefix == BarcodeDataPrefixDOB || prefix == BarcodeDataPrefixExpiry
+		return "", ErrPrefixExtraction{
+			Prefix:      prefix,
+			IsDateError: isDate,
+		}
 	}
 
 }
