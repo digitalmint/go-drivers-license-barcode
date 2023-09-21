@@ -54,9 +54,9 @@ func NewBarcode(data string) (Barcode, error) {
 
 	bc.DocumentSerial.String, bc.DocumentSerial.Err = extractData(data, BarcodeDataPrefixSerial)
 
-	bc.Dob.DateT, bc.Dob.String, bc.Dob.Err = processDate(data, BarcodeDataPrefixDOB)
+	bc.Dob = processDate(data, BarcodeDataPrefixDOB)
 
-	bc.Expiry.DateT, bc.Expiry.String, bc.Expiry.Err = processDate(data, BarcodeDataPrefixExpiry)
+	bc.Expiry = processDate(data, BarcodeDataPrefixExpiry)
 
 	return bc, nil
 }
@@ -109,13 +109,15 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 }
 
 // processDate extracts the date for the prefix, and return it in *time.Time and as a YYYYMMDD formatted string, and any errors
-func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, error) {
+func processDate(data string, prefix BarcodeDataPrefix) DateField {
 	date, err := extractData(data, prefix)
 	if err != nil {
-		return nil, "", err
+		return DateField{
+			Err: err,
+		}
 	}
 	if date == "" {
-		return nil, "", nil
+		return DateField{}
 	}
 
 	fieldName := "uknown"
@@ -131,12 +133,18 @@ func processDate(data string, prefix BarcodeDataPrefix) (*time.Time, string, err
 	dateT, err := parseDate(date, fieldName)
 
 	if err != nil {
-		return nil, "", err
+		return DateField{
+			Err: err,
+		}
 	}
 	// convert to a YYYYMMDD standard format
 	date = dateT.Format(TimeLayoutBarcodeData)
 
-	return dateT, date, nil
+	return DateField{
+		String: date,
+		DateT:  dateT,
+		Err:    nil,
+	}
 }
 
 // parseDate takes in a date and field name strings

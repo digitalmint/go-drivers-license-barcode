@@ -193,18 +193,18 @@ func TestCompareDate(t *testing.T) {
 	require.True(t, IsDateError(err))
 
 	// should return ErrPrefixExtraction
-	dateT, date, err := processDate("someteststring", BarcodeDataPrefix("foo"))
+	df := processDate("someteststring", BarcodeDataPrefix("foo"))
 	require.NotNil(t, err)
-	require.IsType(t, ErrPrefixExtraction{}, err)
-	if !errors.As(err, &ErrPrefixExtraction{}) {
+	require.IsType(t, ErrPrefixExtraction{}, df.Err)
+	if !errors.As(df.Err, &ErrPrefixExtraction{}) {
 		t.Fatal("invalid error type using errors.As")
 	}
-	require.Nil(t, dateT)
-	require.Empty(t, date)
+	require.Nil(t, df.DateT)
+	require.Empty(t, df.String)
 	require.True(t, IsPackageError(err))
 
 	// should return ErrInvalidDate
-	dateT, err = parseDate("someteststring", "testField")
+	dateT, err := parseDate("someteststring", "testField")
 	require.NotNil(t, err)
 	var errInvDate ErrInvalidDate
 	require.ErrorAs(t, err, &errInvDate)
