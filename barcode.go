@@ -2,13 +2,12 @@ package drivers_license
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
-
-	"go.uber.org/zap"
 )
 
 type BarcodeDataType string
@@ -77,7 +76,7 @@ func (bc Barcode) SelectDate(dateType BarcodeDataType, date *time.Time) (*time.T
 		bcDate = bc.Expiry.String
 
 	default:
-		zap.S().Panicf("invalid dateType: %s", dateType)
+		slog.Error("invalid dateType", "type", dateType)
 	}
 
 	fieldName := string(dateType)
@@ -180,7 +179,6 @@ func parseDate(date, fieldName string) (*time.Time, error) {
 
 // extractData extracts the information associated with 'prefix' from 'data' and return the extracted string and any errors
 func extractData(data string, prefix BarcodeDataPrefix) (string, error) {
-	zap.S().Infow("extractData", "prefix", prefix)
 	if prefix == BarcodeDataPrefixSerial {
 		if daqv := findDAQValue(data); daqv == "" {
 			return "", ErrPrefixExtraction{
