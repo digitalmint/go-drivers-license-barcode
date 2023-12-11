@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	expectedDOBT = time.Date(1969, time.Month(3), 5, 0, 0, 0, 0, time.UTC)
-	expectedExpT = time.Date(2023, time.Month(7), 12, 0, 0, 0, 0, time.UTC)
+	expectedDOBT  = time.Date(1969, time.Month(3), 5, 0, 0, 0, 0, time.UTC)
+	expectedExpT  = time.Date(2023, time.Month(7), 12, 0, 0, 0, 0, time.UTC)
+	expectedDOBT1 = time.Date(1994, time.Month(11), 05, 0, 0, 0, 0, time.UTC)
+	expectedExpT1 = time.Date(2026, time.Month(1), 12, 0, 0, 0, 0, time.UTC)
 
 	barcodeTests = []struct {
 		str, expectedSerial, expectedDOB, expectedExp string
@@ -27,17 +29,17 @@ var (
 		},
 		// whitespace separating "DAQ" and the serial number
 		{
-			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgdfgdfxdfg ,sdfzsdfzsdf,D\nDAQ\nFFGG5566\nDBA\n20230712\nDBB\n19690305\nasdsda dsadASD F\nasddsaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
-			expectedSerial: "FFGG5566",
+			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgdfgdfxdfg ,sdfzsdfzsdf,D\nDAQ\nFFGG5566A\nDBA\n20230712\nDBB\n19690305\nasdsda dsadASD F\nasddsaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
+			expectedSerial: "FFGG5566A",
 			expectedDOB:    "19690305",
 			expectedDOBT:   &expectedDOBT,
 			expectedExp:    "20230712",
 			expectedExpT:   &expectedExpT,
 		},
-		//  "DAQ", "DBB", and "DBA" exists in data
+		//  "DBB", and "DBA" exists in data
 		{
-			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgd DAQfgdfxdfg ,sdfzsdfzsdf,D\nDAQ\nFFGG5566\nDBA\n20230712\nDBB\n19690305\nasds DBBda dsadASD F\nasdds DBAaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
-			expectedSerial: "FFGG5566",
+			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgdfgdfxdfg ,sdfzsdfzsdf,D\nDAQ\nFFGG5566B\nDBA\n20230712\nDBB\n19690305\nasds DBBda dsadASD F\nasdds DBAaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
+			expectedSerial: "FFGG5566B",
 			expectedDOB:    "19690305",
 			expectedDOBT:   &expectedDOBT,
 			expectedExp:    "20230712",
@@ -45,12 +47,21 @@ var (
 		},
 		// invalid expiry date
 		{
-			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgdfgdfxdfg ,sdDAQfzsdfzsdf,D\nDAQ\nFFGG5566\nDBA\nabc\nDBB\n19690305\nasdsda dsadASD F\nasddsaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
-			expectedSerial: "FFGG5566",
+			str:            "@\n\u001C\nANSI fgdgdfgxdfggfddfgdfgdfxdfg ,sdfzsdfzsdf,D\nDAQ\nFFGG5566C\nDBA\nabc\nDBB\n19690305\nasdsda dsadASD F\nasddsaasda\nDAJIL\nDAK600160000  \nDARD\nDASB         \nDAT*****\nDBD12345678\nDBCM\nDAU507\nDAW150\nDAYGRN\n\n",
+			expectedSerial: "FFGG5566C",
 			expectedDOB:    "19690305",
 			expectedDOBT:   &expectedDOBT,
 			expectedExp:    "",
 			expectedExpT:   nil,
+		},
+		// no whitespace in front of "DAQ"
+		{
+			str:            "@\n\nANSI 636035080002DL00410267ZI03080021DLDAQ3ff15620ed44b4bd2ec27d5d26078a729e\nDCSHyatt\nDDEN\nDACScotty\nDDFN\nDADLamont\nDDGN\nDCAD\nDCBNONE\nDCDNONE\nDBD11051994\nDBB11051994\nDBA01122026\nDBCM\nDAU074 in\nDAYHAZ\nDAG99725 Linda Crossing\nDAIMathilde ton\nDAJKentucky\nDAK786080000\nDCF20190909306CC3856\nDCGUSA\nDAW200\nDCK\nDDAN\nDDB09172015\nZIZIAORG\nZIB\nZIC\nZID",
+			expectedSerial: "3ff15620ed44b4bd2ec27d5d26078a729e",
+			expectedDOB:    "19941105",
+			expectedDOBT:   &expectedDOBT1,
+			expectedExp:    "20260112",
+			expectedExpT:   &expectedExpT1,
 		},
 	}
 )
