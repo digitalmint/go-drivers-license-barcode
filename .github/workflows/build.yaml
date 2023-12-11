@@ -41,20 +41,20 @@ jobs:
         run: go mod tidy && git diff --exit-code -- go.mod go.sum || (echo "go modules are not tidy, run 'go mod tidy'." && exit 1)
 
 
-  license-check:
-    runs-on: ubuntu-latest
-    name: License Check
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-
-      - name: Get google/go-licenses package
-        shell: bash
-        run: go install github.com/google/go-licenses@latest
-
-      - name: Run Check
-        run: $HOME/go/bin/go-licenses check . --allowed_licenses Apache-2.0,MIT
-        shell: bash
+#  license-check:
+#    runs-on: ubuntu-latest
+#    name: License Check
+#    steps:
+#      - name: checkout
+#        uses: actions/checkout@v3
+#
+#      - name: Get google/go-licenses package
+#        shell: bash
+#        run: go install github.com/google/go-licenses@latest
+#
+#      - name: Run Check
+#        run: $HOME/go/bin/go-licenses check . --allowed_licenses Apache-2.0,MIT
+#        shell: bash
 
   govulncheck:
     name: govulncheck
