@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"go.uber.org/zap"
 )
@@ -179,16 +180,58 @@ func parseDate(date, fieldName string) (*time.Time, error) {
 
 // extractData extracts the information associated with 'prefix' from 'data' and return the extracted string and any errors
 func extractData(data string, prefix BarcodeDataPrefix) (string, error) {
-	re := regexp.MustCompile(fmt.Sprintf(`\n%s\s*(\S+)`, prefix))
-	match := re.FindStringSubmatch(data)
-	if len(match) > 1 {
-		return strings.TrimSpace(match[1]), nil
+	zap.S().Infow("extractData", "prefix", prefix)
+	if prefix == BarcodeDataPrefixSerial {
+		if daqv := findDAQValue(data); daqv == "" {
+			return "", ErrPrefixExtraction{
+				Prefix:      prefix,
+				IsDateError: false,
+			}
+		} else {
+			return daqv, nil
+		}
 	} else {
-		isDate := prefix == BarcodeDataPrefixDOB || prefix == BarcodeDataPrefixExpiry
-		return "", ErrPrefixExtraction{
-			Prefix:      prefix,
-			IsDateError: isDate,
+		re := regexp.MustCompile(fmt.Sprintf(`\n%s\s*(\S+)`, prefix))
+		match := re.FindStringSubmatch(data)
+		if len(match) > 1 {
+			return strings.TrimSpace(match[1]), nil
+		} else {
+			isDate := prefix == BarcodeDataPrefixDOB || prefix == BarcodeDataPrefixExpiry
+			return "", ErrPrefixExtraction{
+				Prefix:      prefix,
+				IsDateError: isDate,
+			}
 		}
 	}
 
+}
+
+func findDAQValue(inputString string) string {
+	// Find the index of "DAQ" in the string
+	index := strings.Index(inputString, "DAQ")
+	if index == -1 {
+		return ""
+	}
+
+	// Trim the string starting from "DAQ"
+	trimmedString := inputString[index+len("DAQ"):]
+
+	// Define a function to check for whitespace or newline characters
+	isWhitespace := func(r rune) bool {
+		return unicode.IsSpace(r) || r == '\u001C' || r == ','
+	}
+
+	// Trim leading whitespace, newline, and other characters
+	trimmedString = strings.TrimLeftFunc(trimmedString, isWhitespace)
+
+	// Find the index of the next newline character or other delimiter
+	newlineIndex := strings.IndexFunc(trimmedString, unicode.IsSpace)
+	if newlineIndex == -1 {
+		return trimmedString
+	}
+
+	// Extract the substring between "DAQ" and the newline
+	result := trimmedString[:newlineIndex]
+
+	return result
 }
